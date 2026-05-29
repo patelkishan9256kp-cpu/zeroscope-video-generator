@@ -1,1 +1,32 @@
+name: Generate Video
 
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install requests
+      - name: Extract parameters from issue title
+        id: params
+        run: |
+          title="${{ github.event.issue.title }}"
+          prompt=$(echo "$title" | cut -d'|' -f2 | xargs)
+          output=$(echo "$title" | cut -d'|' -f3 | xargs)
+          echo "::set-output name=prompt::$prompt"
+          echo "::set-output name=output::$output"
+      - name: Generate video
+        run: python generate_video.py ${{ secrets.HF_TOKEN }} "${{ steps.params.outputs.prompt }}" "${{ steps.params.outputs.output }}"
+      - name: Commit video to repo
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ${{ steps.params.outputs.output }}
+          git commit -m "Add generated video"
+          git push
